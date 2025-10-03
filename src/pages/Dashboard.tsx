@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { GraduationCap, TrendingUp, Award, Coins, BookOpen, LogOut } from "lucide-react";
+import { GraduationCap, TrendingUp, Award, Coins, BookOpen, LogOut, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface UserProfile {
@@ -28,61 +29,46 @@ interface Enrollment {
 }
 
 const Dashboard = () => {
-  const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const { user, profile, isAdmin, loading: authLoading, signOut } = useAuth();
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    checkUser();
-  }, []);
-
-  const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
+    if (!authLoading && !user) {
       navigate("/auth");
       return;
     }
 
-    setUser(user);
-    await fetchProfile(user.id);
-    await fetchEnrollments(user.id);
-    setLoading(false);
-  };
-
-  const fetchProfile = async (userId: string) => {
-    const { data, error } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", userId)
-      .single();
-
-    if (data) {
-      setProfile(data);
+    if (user) {
+      fetchEnrollments(user.id);
     }
-  };
+  }, [user, authLoading, navigate]);
 
   const fetchEnrollments = async (userId: string) => {
-    const { data, error } = await supabase
-      .from("enrollments")
-      .select(`
-        id,
-        progress_percent,
-        course:courses(id, slug, title, difficulty)
-      `)
-      .eq("user_id", userId)
-      .eq("active", true);
+    try {
+      const { data, error } = await supabase
+        .from("enrollments")
+        .select(`
+          id,
+          progress_percent,
+          course:courses(id, slug, title, difficulty)
+        `)
+        .eq("user_id", userId)
+        .eq("active", true);
 
-    if (data) {
-      setEnrollments(data as any);
+      if (error) throw error;
+      setEnrollments(data as any || []);
+    } catch (error) {
+      console.error("Error fetching enrollments:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     toast({
       title: "Signed out",
       description: "Come back soon!",
@@ -90,7 +76,7 @@ const Dashboard = () => {
     navigate("/");
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
         <div className="text-center">
@@ -113,6 +99,14 @@ const Dashboard = () => {
             </span>
           </Link>
           <div className="flex items-center gap-4">
+            {isAdmin && (
+              <Link to="/admin">
+                <Button variant="outline" className="border-destructive/50 text-destructive">
+                  <Shield className="mr-2 h-4 w-4" />
+                  Admin Panel
+                </Button>
+              </Link>
+            )}
             <Link to="/">
               <Button variant="ghost">Browse Courses</Button>
             </Link>

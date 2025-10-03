@@ -117,9 +117,29 @@ const Course = () => {
     if (!course) return;
 
     try {
+      // Check if already enrolled
+      const { data: existingEnrollment } = await supabase
+        .from("enrollments")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("course_id", course.id)
+        .maybeSingle();
+
+      if (existingEnrollment) {
+        toast({
+          title: "Already enrolled",
+          description: "You're already enrolled in this course!",
+        });
+        setEnrolled(true);
+        return;
+      }
+
+      // Create new enrollment
       const { error } = await supabase.from("enrollments").insert({
         user_id: user.id,
         course_id: course.id,
+        progress_percent: 0,
+        active: true,
       });
 
       if (error) throw error;
@@ -129,10 +149,18 @@ const Course = () => {
         title: "Enrolled!",
         description: "You're now enrolled in this course. Start learning!",
       });
+
+      // Navigate to first lesson
+      if (course.chapters[0]?.lessons[0]) {
+        setTimeout(() => {
+          navigate(`/lesson/${course.chapters[0].lessons[0].id}`);
+        }, 1000);
+      }
     } catch (error: any) {
+      console.error("Enrollment error:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to enroll. Please try again.",
         variant: "destructive",
       });
     }

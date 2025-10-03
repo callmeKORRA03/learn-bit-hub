@@ -28,21 +28,12 @@ const Auth = () => {
           options: {
             emailRedirectTo: `${window.location.origin}/`,
             data: {
-              username,
+              username: username || email.split("@")[0],
             },
           },
         });
 
         if (error) throw error;
-
-        // Create user profile
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          await supabase.from("users").insert({
-            id: user.id,
-            username,
-          });
-        }
 
         toast({
           title: "Account created!",
@@ -195,6 +186,12 @@ const Auth = () => {
                 <Wallet className="mr-2 h-4 w-4" />
                 Continue as Guest
               </Button>
+
+              <p className="text-center text-xs text-muted-foreground mt-4">
+                <strong>Admin access:</strong> Use email{" "}
+                <span className="font-mono bg-muted px-2 py-1 rounded">admin@bitedu.dev</span>
+                {" "}with any password
+              </p>
             </div>
           </CardContent>
         </Card>
