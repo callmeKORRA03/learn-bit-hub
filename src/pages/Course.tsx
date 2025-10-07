@@ -37,16 +37,23 @@ const Course = () => {
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    checkUser();
-    fetchCourse();
+    const initialize = async () => {
+      await checkUser();
+      await fetchCourse();
+    };
+    initialize();
   }, [slug]);
+
+  useEffect(() => {
+    // Check enrollment after both user and course are loaded
+    if (user && course) {
+      checkEnrollment(user.id);
+    }
+  }, [user, course]);
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     setUser(user);
-    if (user) {
-      checkEnrollment(user.id);
-    }
   };
 
   const fetchCourse = async () => {
@@ -275,10 +282,33 @@ const Course = () => {
               Enroll Now - Free
             </Button>
           ) : (
-            <Button size="lg" className="bg-success hover:opacity-90" disabled>
-              <CheckCircle2 className="mr-2 h-5 w-5" />
-              Enrolled
-            </Button>
+            <div className="flex gap-4">
+              <Button 
+                size="lg" 
+                onClick={() => {
+                  // Find first incomplete lesson
+                  for (const chapter of course.chapters) {
+                    for (const lesson of chapter.lessons) {
+                      if (!completedLessons.has(lesson.id)) {
+                        navigate(`/lesson/${lesson.id}`);
+                        return;
+                      }
+                    }
+                  }
+                  // If all lessons completed, go to first lesson
+                  if (course.chapters[0]?.lessons[0]) {
+                    navigate(`/lesson/${course.chapters[0].lessons[0].id}`);
+                  }
+                }}
+                className="bg-gradient-primary hover:opacity-90"
+              >
+                Continue Learning
+              </Button>
+              <Badge className="bg-success/20 text-success flex items-center gap-2 px-4 py-2">
+                <CheckCircle2 className="h-4 w-4" />
+                Enrolled
+              </Badge>
+            </div>
           )}
         </div>
 
