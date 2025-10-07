@@ -25,10 +25,8 @@ const AdminDashboard = () => {
   const [statsLoading, setStatsLoading] = useState(true);
 
   useEffect(() => {
-    if (!loading) {
-      if (!isAdmin) {
-        navigate("/");
-      }
+    if (!loading && !isAdmin) {
+      navigate("/");
     }
   }, [isAdmin, loading, navigate]);
 

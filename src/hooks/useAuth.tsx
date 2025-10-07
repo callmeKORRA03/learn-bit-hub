@@ -49,26 +49,37 @@ export const useAuth = () => {
   };
 
   const fetchUserData = async (userId: string) => {
-    // Fetch user profile
-    const { data: profileData } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", userId)
-      .single();
+    try {
+      // Fetch user profile
+      const { data: profileData, error: profileError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", userId)
+        .single();
 
-    if (profileData) {
-      setProfile(profileData);
+      if (profileError) {
+        console.error("Error fetching profile:", profileError);
+      } else if (profileData) {
+        setProfile(profileData);
+      }
+
+      // Check if user is admin
+      const { data: rolesData, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      if (rolesError) {
+        console.error("Error fetching roles:", rolesError);
+      }
+
+      setIsAdmin(!!rolesData);
+    } catch (error) {
+      console.error("Error in fetchUserData:", error);
+      setIsAdmin(false);
     }
-
-    // Check if user is admin
-    const { data: rolesData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("role", "admin")
-      .single();
-
-    setIsAdmin(!!rolesData);
   };
 
   const signOut = async () => {
