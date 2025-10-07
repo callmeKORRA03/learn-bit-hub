@@ -34,6 +34,7 @@ const Course = () => {
   const [enrolled, setEnrolled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     checkUser();
@@ -103,9 +104,42 @@ const Course = () => {
       .select("id")
       .eq("user_id", userId)
       .eq("course_id", course.id)
-      .single();
+      .maybeSingle();
 
     setEnrolled(!!data);
+
+    // Fetch completed lessons if enrolled
+    if (data) {
+      fetchCompletedLessons(userId);
+    }
+  };
+
+  const fetchCompletedLessons = async (userId: string) => {
+    if (!course) return;
+
+    // Get all lesson IDs for this course
+    const allLessonIds = course.chapters.flatMap(ch => ch.lessons.map(l => l.id));
+
+    const { data } = await supabase
+      .from("lesson_progress")
+      .select("lesson_id")
+      .eq("user_id", userId)
+      .in("lesson_id", allLessonIds);
+
+    if (data) {
+      setCompletedLessons(new Set(data.map(item => item.lesson_id)));
+      
+      // Update enrollment progress
+      const totalLessons = allLessonIds.length;
+      const completedCount = data.length;
+      const progressPercent = Math.round((completedCount / totalLessons) * 100);
+
+      await supabase
+        .from("enrollments")
+        .update({ progress_percent: progressPercent })
+        .eq("user_id", userId)
+        .eq("course_id", course.id);
+    }
   };
 
   const handleEnroll = async () => {
@@ -286,11 +320,17 @@ const Course = () => {
                           >
                             <div className="flex items-center gap-3">
                               {enrolled ? (
-                                <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                                completedLessons.has(lesson.id) ? (
+                                  <CheckCircle2 className="h-4 w-4 text-success" />
+                                ) : (
+                                  <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                                )
                               ) : (
                                 <Lock className="h-4 w-4 text-muted-foreground" />
                               )}
-                              <span>{lesson.title}</span>
+                              <span className={completedLessons.has(lesson.id) ? "text-success" : ""}>
+                                {lesson.title}
+                              </span>
                             </div>
                             <span className="text-sm text-muted-foreground">
                               {lesson.estimated_time_minutes}min

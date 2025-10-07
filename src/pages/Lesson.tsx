@@ -68,13 +68,69 @@ const Lesson = () => {
   };
 
   const handleComplete = async () => {
-    toast({
-      title: "Lesson completed!",
-      description: "+10 XP earned",
-    });
-    
-    if (lesson?.chapter.course.slug) {
+    if (!lesson) return;
+
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to track progress",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Save lesson completion
+      const { error } = await supabase
+        .from("lesson_progress")
+        .upsert({
+          user_id: user.id,
+          lesson_id: lesson.id,
+          completed_at: new Date().toISOString(),
+        }, {
+          onConflict: 'user_id,lesson_id'
+        });
+
+      if (error) {
+        console.error("Error saving progress:", error);
+        toast({
+          title: "Error",
+          description: "Failed to save progress",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update user XP
+      const { data: userData } = await supabase
+        .from("users")
+        .select("xp")
+        .eq("id", user.id)
+        .single();
+
+      if (userData) {
+        await supabase
+          .from("users")
+          .update({ xp: userData.xp + 10 })
+          .eq("id", user.id);
+      }
+
+      toast({
+        title: "Lesson completed!",
+        description: "+10 XP earned",
+      });
+
+      // Navigate back to course
       navigate(`/course/${lesson.chapter.course.slug}`);
+    } catch (error) {
+      console.error("Error in handleComplete:", error);
+      toast({
+        title: "Error",
+        description: "Something went wrong",
+        variant: "destructive",
+      });
     }
   };
 
