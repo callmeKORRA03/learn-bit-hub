@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, GraduationCap, Star, TrendingUp, Wallet } from "lucide-react";
+import { BookOpen, GraduationCap, Star } from "lucide-react";
 
 interface Course {
   id: string;
@@ -15,7 +16,8 @@ interface Course {
   cover_url: string | null;
 }
 
-const Index = () => {
+const Courses = () => {
+  const { user } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -55,7 +57,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-hero">
-      {/* Hero Section */}
+      {/* Header */}
       <header className="border-b border-border/40 backdrop-blur-sm bg-background/80 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
@@ -65,78 +67,24 @@ const Index = () => {
             </span>
           </Link>
           <div className="flex items-center gap-4">
-            <Link to="/dashboard">
-              <Button variant="ghost">Dashboard</Button>
-            </Link>
-            <Link to="/auth">
-              <Button className="bg-gradient-primary hover:opacity-90 transition-opacity">
-                <Wallet className="mr-2 h-4 w-4" />
-                Sign In
-              </Button>
-            </Link>
+            {user ? (
+              <Link to="/dashboard">
+                <Button variant="ghost">Dashboard</Button>
+              </Link>
+            ) : (
+              <Link to="/auth">
+                <Button className="bg-gradient-primary hover:opacity-90">Sign In</Button>
+              </Link>
+            )}
           </div>
         </div>
       </header>
 
-      {/* Hero Banner */}
-      <section className="container mx-auto px-4 py-20 text-center">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-primary bg-clip-text text-transparent">
-            Master Blockchain & Crypto
-          </h1>
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Plain-English courses on blockchain, DeFi, and crypto tools. Earn XP, collect BitCred, and get verified certificates.
-          </p>
-          <div className="flex flex-wrap justify-center gap-4">
-            <Link to="/courses">
-              <Button size="lg" className="bg-gradient-primary hover:opacity-90 transition-opacity shadow-glow">
-                <BookOpen className="mr-2 h-5 w-5" />
-                Browse Courses
-              </Button>
-            </Link>
-            <Button size="lg" variant="outline" className="border-primary/50">
-              <TrendingUp className="mr-2 h-5 w-5" />
-              View Leaderboard
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-          <Card className="bg-gradient-card border-primary/20 shadow-card">
-            <CardHeader>
-              <CardTitle className="text-center text-4xl font-bold text-primary">
-                {courses.length}+
-              </CardTitle>
-              <CardDescription className="text-center">Expert Courses</CardDescription>
-            </CardHeader>
-          </Card>
-          <Card className="bg-gradient-card border-primary/20 shadow-card">
-            <CardHeader>
-              <CardTitle className="text-center text-4xl font-bold text-accent">
-                500+
-              </CardTitle>
-              <CardDescription className="text-center">Active Learners</CardDescription>
-            </CardHeader>
-          </Card>
-          <Card className="bg-gradient-card border-primary/20 shadow-card">
-            <CardHeader>
-              <CardTitle className="text-center text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                100%
-              </CardTitle>
-              <CardDescription className="text-center">Free to Start</CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
-      </section>
-
       {/* Courses Section */}
       <section className="container mx-auto px-4 py-16">
-        <div className="mb-12 text-center">
-          <h2 className="text-4xl font-bold mb-4">Featured Courses</h2>
-          <p className="text-muted-foreground">Start your blockchain learning journey today</p>
+        <div className="mb-12">
+          <h1 className="text-4xl font-bold mb-4">All Courses</h1>
+          <p className="text-muted-foreground">Browse our complete catalog of blockchain and crypto courses</p>
         </div>
 
         {loading ? (
@@ -150,6 +98,12 @@ const Index = () => {
               </Card>
             ))}
           </div>
+        ) : courses.length === 0 ? (
+          <Card className="bg-gradient-card border-primary/20 p-8 text-center">
+            <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-xl font-semibold mb-2">No courses available yet</h3>
+            <p className="text-muted-foreground">Check back soon for new courses!</p>
+          </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {courses.map((course) => (
@@ -178,15 +132,8 @@ const Index = () => {
           </div>
         )}
       </section>
-
-      {/* Footer */}
-      <footer className="border-t border-border/40 mt-20">
-        <div className="container mx-auto px-4 py-8 text-center text-muted-foreground">
-          <p>© 2025 BitEdu. Blockchain education for everyone.</p>
-        </div>
-      </footer>
     </div>
   );
 };
 
-export default Index;
+export default Courses;

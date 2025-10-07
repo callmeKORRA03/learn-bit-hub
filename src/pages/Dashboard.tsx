@@ -107,7 +107,7 @@ const Dashboard = () => {
                 </Button>
               </Link>
             )}
-            <Link to="/">
+            <Link to="/courses">
               <Button variant="ghost">Browse Courses</Button>
             </Link>
             <Button variant="ghost" onClick={handleSignOut}>

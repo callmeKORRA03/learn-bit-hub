@@ -25,8 +25,10 @@ const AdminDashboard = () => {
   const [statsLoading, setStatsLoading] = useState(true);
 
   useEffect(() => {
-    if (!loading && !isAdmin) {
-      navigate("/");
+    if (!loading) {
+      if (!isAdmin) {
+        navigate("/");
+      }
     }
   }, [isAdmin, loading, navigate]);
 
@@ -84,7 +86,7 @@ const AdminDashboard = () => {
             <Link to="/dashboard">
               <Button variant="ghost">User Dashboard</Button>
             </Link>
-            <Link to="/">
+            <Link to="/courses">
               <Button variant="ghost">Browse Courses</Button>
             </Link>
           </div>
