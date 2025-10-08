@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { GraduationCap, TrendingUp, Award, Coins, BookOpen, LogOut, Shield } from "lucide-react";
+import { GraduationCap, BookOpen, Trophy, LogOut, Award, Shield, TrendingUp, Coins } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface UserProfile {
@@ -32,6 +32,7 @@ const Dashboard = () => {
   const { user, profile, isAdmin, loading: authLoading, signOut } = useAuth();
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [certificateCount, setCertificateCount] = useState(0);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -43,8 +44,23 @@ const Dashboard = () => {
 
     if (user) {
       fetchEnrollments(user.id);
+      fetchCertificates();
     }
   }, [user, authLoading, navigate]);
+
+  const fetchCertificates = async () => {
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("certificates")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("status", "approved");
+
+    if (!error && data) {
+      setCertificateCount(data.length);
+    }
+  };
 
   const fetchEnrollments = async (userId: string) => {
     try {
@@ -164,13 +180,13 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-card border-primary/20 shadow-card">
+          <Card className="bg-gradient-card border-primary/20 shadow-card cursor-pointer hover:shadow-glow transition-all" onClick={() => navigate("/certificates")}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Certificates</CardTitle>
-              <Award className="h-4 w-4 bg-gradient-primary bg-clip-text" />
+              <Award className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">0</div>
+              <div className="text-3xl font-bold">{certificateCount}</div>
               <p className="text-xs text-muted-foreground mt-1">Earned</p>
             </CardContent>
           </Card>

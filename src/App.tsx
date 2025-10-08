@@ -9,9 +9,11 @@ import Dashboard from "./pages/Dashboard";
 import Courses from "./pages/Courses";
 import Course from "./pages/Course";
 import Lesson from "./pages/Lesson";
+import Certificates from "./pages/Certificates";
 import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminUsers from "./pages/admin/AdminUsers";
+import AdminCertificates from "./pages/admin/AdminCertificates";
 
 const queryClient = new QueryClient();
 
@@ -28,8 +30,10 @@ const App = () => (
           <Route path="/courses" element={<Courses />} />
           <Route path="/course/:slug" element={<Course />} />
           <Route path="/lesson/:id" element={<Lesson />} />
+          <Route path="/certificates" element={<Certificates />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/users" element={<AdminUsers />} />
+          <Route path="/admin/certificates" element={<AdminCertificates />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

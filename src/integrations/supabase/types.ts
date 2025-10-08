@@ -49,32 +49,41 @@ export type Database = {
       certificates: {
         Row: {
           approved_at: string | null
+          approved_by: string | null
           course_id: string
           created_at: string | null
           id: string
           pdf_url: string | null
+          requested_at: string | null
           signature: string | null
           signer_metadata: Json | null
+          status: string | null
           user_id: string
         }
         Insert: {
           approved_at?: string | null
+          approved_by?: string | null
           course_id: string
           created_at?: string | null
           id?: string
           pdf_url?: string | null
+          requested_at?: string | null
           signature?: string | null
           signer_metadata?: Json | null
+          status?: string | null
           user_id: string
         }
         Update: {
           approved_at?: string | null
+          approved_by?: string | null
           course_id?: string
           created_at?: string | null
           id?: string
           pdf_url?: string | null
+          requested_at?: string | null
           signature?: string | null
           signer_metadata?: Json | null
+          status?: string | null
           user_id?: string
         }
         Relationships: [
@@ -322,21 +331,27 @@ export type Database = {
       quiz_attempts: {
         Row: {
           attempt_at: string | null
+          feedback: Json | null
           id: string
+          passed: boolean | null
           quiz_id: string
           score: number | null
           user_id: string
         }
         Insert: {
           attempt_at?: string | null
+          feedback?: Json | null
           id?: string
+          passed?: boolean | null
           quiz_id: string
           score?: number | null
           user_id: string
         }
         Update: {
           attempt_at?: string | null
+          feedback?: Json | null
           id?: string
+          passed?: boolean | null
           quiz_id?: string
           score?: number | null
           user_id?: string
@@ -365,6 +380,7 @@ export type Database = {
           lesson_id: string
           passing_threshold: number | null
           quiz_json: Json | null
+          timer_minutes: number | null
         }
         Insert: {
           created_at?: string | null
@@ -372,6 +388,7 @@ export type Database = {
           lesson_id: string
           passing_threshold?: number | null
           quiz_json?: Json | null
+          timer_minutes?: number | null
         }
         Update: {
           created_at?: string | null
@@ -379,6 +396,7 @@ export type Database = {
           lesson_id?: string
           passing_threshold?: number | null
           quiz_json?: Json | null
+          timer_minutes?: number | null
         }
         Relationships: [
           {

@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { GraduationCap, Users, BookOpen, FileCheck, AlertCircle } from "lucide-react";
+import { GraduationCap, Users, BookOpen, FileCheck, AlertCircle, Award } from "lucide-react";
 
 interface Stats {
   totalUsers: number;
@@ -194,19 +194,21 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-card border-primary/20 shadow-card opacity-60">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3">
-                <FileCheck className="h-6 w-6 text-success" />
-                Certificate Management
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Coming soon: Approve and manage certificates
-              </p>
-            </CardContent>
-          </Card>
+          <Link to="/admin/certificates">
+            <Card className="bg-gradient-card border-primary/20 shadow-card hover:shadow-glow transition-all hover:scale-105 cursor-pointer">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3">
+                  <Award className="h-6 w-6 text-success" />
+                  Certificate Management
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Approve and manage user certificate requests
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
       </div>
     </div>

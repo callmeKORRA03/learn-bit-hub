@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { GraduationCap, ChevronLeft, ChevronRight, BookOpen } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { GraduationCap, ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import Quiz from "@/components/Quiz";
+import CertificateGenerator from "@/components/CertificateGenerator";
 
 interface LessonData {
   id: string;
@@ -13,6 +14,8 @@ interface LessonData {
   content: string;
   chapter: {
     title: string;
+    order_index: number;
+    lessons: Array<{ id: string; order_index: number }>;
     course: {
       id: string;
       slug: string;
@@ -22,20 +25,36 @@ interface LessonData {
 }
 
 const Lesson = () => {
-  const { id } = useParams();
+  const { id: lessonId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [lesson, setLesson] = useState<LessonData | null>(null);
+  const [nextLesson, setNextLesson] = useState<{ id: string } | null>(null);
+  const [course, setCourse] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [progress, setProgress] = useState(0);
+  const [user, setUser] = useState<any>(null);
+  const [completed, setCompleted] = useState(false);
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [quizPassed, setQuizPassed] = useState(false);
+  const [hasQuiz, setHasQuiz] = useState(false);
+  const [allLessonsCompleted, setAllLessonsCompleted] = useState(false);
 
   useEffect(() => {
-    fetchLesson();
-  }, [id]);
+    const initialize = async () => {
+      await checkUser();
+      await fetchLesson();
+    };
+    initialize();
+  }, [lessonId]);
+
+  const checkUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setUser(user);
+  };
 
   const fetchLesson = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: lessonData, error } = await supabase
         .from("lessons")
         .select(`
           id,
@@ -43,6 +62,11 @@ const Lesson = () => {
           content,
           chapter:chapters (
             title,
+            order_index,
+            lessons (
+              id,
+              order_index
+            ),
             course:courses (
               id,
               slug,
@@ -50,11 +74,65 @@ const Lesson = () => {
             )
           )
         `)
-        .eq("id", id)
+        .eq("id", lessonId)
         .single();
 
       if (error) throw error;
-      setLesson(data);
+
+      const { data: courseData } = await supabase
+        .from("courses")
+        .select(`
+          id,
+          title,
+          slug,
+          chapters (
+            id,
+            order_index,
+            lessons (
+              id,
+              order_index
+            )
+          )
+        `)
+        .eq("id", lessonData.chapter.course.id)
+        .single();
+
+      const allLessons = lessonData.chapter.lessons.sort((a: any, b: any) => a.order_index - b.order_index);
+      const currentIndex = allLessons.findIndex((l: any) => l.id === lessonId);
+      setNextLesson(currentIndex < allLessons.length - 1 ? allLessons[currentIndex + 1] : null);
+
+      const { data: progressData } = await supabase
+        .from("lesson_progress")
+        .select("*")
+        .eq("lesson_id", lessonId)
+        .eq("user_id", user?.id)
+        .maybeSingle();
+
+      setCourse(courseData);
+      setLesson(lessonData);
+      setCompleted(!!progressData);
+
+      const { data: quizData } = await supabase
+        .from("quizzes")
+        .select("id")
+        .eq("lesson_id", lessonId)
+        .maybeSingle();
+
+      setHasQuiz(!!quizData);
+
+      if (user) {
+        const allLessonIds = courseData.chapters.flatMap((ch: any) =>
+          ch.lessons.map((l: any) => l.id)
+        );
+
+        const { data: allProgress } = await supabase
+          .from("lesson_progress")
+          .select("lesson_id")
+          .eq("user_id", user.id)
+          .in("lesson_id", allLessonIds);
+
+        setAllLessonsCompleted(allProgress?.length === allLessonIds.length);
+      }
     } catch (error) {
       console.error("Error fetching lesson:", error);
       toast({
@@ -68,42 +146,20 @@ const Lesson = () => {
   };
 
   const handleComplete = async () => {
-    if (!lesson) return;
+    if (!lesson || !user) return;
 
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast({
-          title: "Error",
-          description: "You must be logged in to track progress",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Save lesson completion
       const { error } = await supabase
         .from("lesson_progress")
         .upsert({
           user_id: user.id,
           lesson_id: lesson.id,
-          completed_at: new Date().toISOString(),
         }, {
           onConflict: 'user_id,lesson_id'
         });
 
-      if (error) {
-        console.error("Error saving progress:", error);
-        toast({
-          title: "Error",
-          description: "Failed to save progress",
-          variant: "destructive",
-        });
-        return;
-      }
+      if (error) throw error;
 
-      // Update user XP
       const { data: userData } = await supabase
         .from("users")
         .select("xp")
@@ -111,24 +167,36 @@ const Lesson = () => {
         .single();
 
       if (userData) {
+        const newXP = userData.xp + 10;
         await supabase
           .from("users")
-          .update({ xp: userData.xp + 10 })
+          .update({ xp: newXP })
           .eq("id", user.id);
+
+        toast({
+          title: "Lesson Completed!",
+          description: `You earned 10 XP! Total: ${newXP} XP`,
+        });
       }
 
-      toast({
-        title: "Lesson completed!",
-        description: "+10 XP earned",
-      });
+      setCompleted(true);
 
-      // Navigate back to course
-      navigate(`/course/${lesson.chapter.course.slug}`);
-    } catch (error) {
-      console.error("Error in handleComplete:", error);
+      if (hasQuiz) {
+        setShowQuiz(true);
+      } else {
+        setTimeout(() => {
+          if (nextLesson) {
+            navigate(`/lesson/${nextLesson.id}`);
+          } else {
+            navigate(`/course/${course.slug}`);
+          }
+        }, 1500);
+      }
+    } catch (error: any) {
+      console.error("Error completing lesson:", error);
       toast({
         title: "Error",
-        description: "Something went wrong",
+        description: error.message || "Failed to complete lesson",
         variant: "destructive",
       });
     }
@@ -160,68 +228,102 @@ const Lesson = () => {
 
   return (
     <div className="min-h-screen bg-gradient-hero">
-      {/* Header */}
       <header className="border-b border-border/40 backdrop-blur-sm bg-background/80 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between mb-2">
-            <Link to="/" className="flex items-center gap-2">
-              <GraduationCap className="h-8 w-8 text-primary" />
-              <span className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                BitEdu
-              </span>
-            </Link>
-            <Link to={`/course/${lesson.chapter.course.slug}`}>
-              <Button variant="ghost">
-                <ChevronLeft className="mr-2 h-4 w-4" />
-                Back to Course
-              </Button>
-            </Link>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">
-              {lesson.chapter.course.title} • {lesson.chapter.title}
-            </p>
-            <Progress value={progress} className="mt-2" />
-          </div>
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2">
+            <GraduationCap className="h-8 w-8 text-primary" />
+            <span className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+              BitEdu
+            </span>
+          </Link>
+          <Link to={`/course/${lesson.chapter.course.slug}`}>
+            <Button variant="ghost">
+              <ChevronLeft className="mr-2 h-4 w-4" />
+              Back to Course
+            </Button>
+          </Link>
         </div>
       </header>
 
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          {/* Lesson Header */}
           <div className="mb-8">
-            <div className="flex items-center gap-2 mb-4 text-muted-foreground">
-              <BookOpen className="h-5 w-5" />
-              <span>{lesson.chapter.title}</span>
-            </div>
+            <p className="text-muted-foreground mb-2">{lesson.chapter.title}</p>
             <h1 className="text-4xl md:text-5xl font-bold mb-4">{lesson.title}</h1>
           </div>
 
-          {/* Lesson Content */}
           <Card className="bg-gradient-card border-primary/20 shadow-card mb-8">
             <CardContent className="p-8">
-              <div className="prose prose-invert max-w-none">
-                <p className="text-lg leading-relaxed whitespace-pre-wrap">
-                  {lesson.content}
-                </p>
+              <div className="prose prose-invert max-w-none mb-8">
+                {lesson.content || "No content available for this lesson."}
+              </div>
+
+              {completed && hasQuiz && showQuiz && !quizPassed && (
+                <div className="mb-8">
+                  <Quiz
+                    lessonId={lesson.id}
+                    userId={user.id}
+                    onComplete={(passed) => {
+                      setQuizPassed(passed);
+                      if (passed) {
+                        setShowQuiz(false);
+                      }
+                    }}
+                  />
+                </div>
+              )}
+
+              {allLessonsCompleted && quizPassed && course && user && (
+                <div className="mb-8">
+                  <CertificateGenerator
+                    courseTitle={course.title}
+                    userName={user.email}
+                    userId={user.id}
+                    courseId={course.id}
+                  />
+                </div>
+              )}
+
+              <div className="flex items-center justify-between pt-6 border-t border-border/40">
+                <Button
+                  variant="outline"
+                  onClick={() => navigate(`/course/${course.slug}`)}
+                >
+                  <ChevronLeft className="mr-2 h-4 w-4" />
+                  Back to Course
+                </Button>
+
+                {!completed ? (
+                  <Button
+                    onClick={handleComplete}
+                    className="bg-gradient-primary hover:opacity-90"
+                  >
+                    Mark as Complete
+                    <CheckCircle2 className="ml-2 h-4 w-4" />
+                  </Button>
+                ) : showQuiz && hasQuiz ? (
+                  <Button disabled className="bg-primary/50">
+                    Complete Quiz to Continue
+                  </Button>
+                ) : nextLesson ? (
+                  <Link to={`/lesson/${nextLesson.id}`}>
+                    <Button className="bg-gradient-primary hover:opacity-90">
+                      Next Lesson
+                      <ChevronRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button
+                    onClick={() => navigate(`/course/${course.slug}`)}
+                    className="bg-success hover:opacity-90"
+                  >
+                    Course Complete!
+                    <CheckCircle2 className="ml-2 h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
-
-          {/* Navigation */}
-          <div className="flex items-center justify-between">
-            <Button variant="outline" className="border-primary/50">
-              <ChevronLeft className="mr-2 h-4 w-4" />
-              Previous Lesson
-            </Button>
-            <Button
-              onClick={handleComplete}
-              className="bg-gradient-primary hover:opacity-90 shadow-glow"
-            >
-              Complete & Continue
-              <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
         </div>
       </div>
     </div>
