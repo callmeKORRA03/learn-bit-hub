@@ -8,6 +8,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Courses from "./pages/Courses";
 import Course from "./pages/Course";
+import CourseQuiz from "./pages/CourseQuiz";
 import Lesson from "./pages/Lesson";
 import Certificates from "./pages/Certificates";
 import NotFound from "./pages/NotFound";
@@ -28,8 +29,9 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/courses" element={<Courses />} />
-          <Route path="/course/:slug" element={<Course />} />
-          <Route path="/lesson/:id" element={<Lesson />} />
+        <Route path="/course/:slug" element={<Course />} />
+        <Route path="/course/:slug/quiz" element={<CourseQuiz />} />
+        <Route path="/lesson/:id" element={<Lesson />} />
           <Route path="/certificates" element={<Certificates />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/users" element={<AdminUsers />} />

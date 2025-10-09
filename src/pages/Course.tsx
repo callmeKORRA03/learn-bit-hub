@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 interface CourseData {
   id: string;
   title: string;
+  slug: string;
   description: string;
   difficulty: string;
   chapters: Array<{
@@ -35,6 +36,7 @@ const Course = () => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
+  const [progressPercent, setProgressPercent] = useState(0);
 
   useEffect(() => {
     const initialize = async () => {
@@ -63,6 +65,7 @@ const Course = () => {
         .select(`
           id,
           title,
+          slug,
           description,
           difficulty,
           chapters (
@@ -139,11 +142,12 @@ const Course = () => {
       // Update enrollment progress
       const totalLessons = allLessonIds.length;
       const completedCount = data.length;
-      const progressPercent = Math.round((completedCount / totalLessons) * 100);
+      const calculatedProgress = Math.round((completedCount / totalLessons) * 100);
+      setProgressPercent(calculatedProgress);
 
       await supabase
         .from("enrollments")
-        .update({ progress_percent: progressPercent })
+        .update({ progress_percent: calculatedProgress })
         .eq("user_id", userId)
         .eq("course_id", course.id);
     }
@@ -282,31 +286,41 @@ const Course = () => {
               Enroll Now - Free
             </Button>
           ) : (
-            <div className="flex gap-4">
-              <Button 
-                size="lg" 
-                onClick={() => {
-                  // Find first incomplete lesson
-                  for (const chapter of course.chapters) {
-                    for (const lesson of chapter.lessons) {
-                      if (!completedLessons.has(lesson.id)) {
-                        navigate(`/lesson/${lesson.id}`);
-                        return;
+            <div className="flex flex-wrap gap-4 items-center">
+              {progressPercent < 100 ? (
+                <Button 
+                  size="lg" 
+                  onClick={() => {
+                    // Find first incomplete lesson
+                    for (const chapter of course.chapters) {
+                      for (const lesson of chapter.lessons) {
+                        if (!completedLessons.has(lesson.id)) {
+                          navigate(`/lesson/${lesson.id}`);
+                          return;
+                        }
                       }
                     }
-                  }
-                  // If all lessons completed, go to first lesson
-                  if (course.chapters[0]?.lessons[0]) {
-                    navigate(`/lesson/${course.chapters[0].lessons[0].id}`);
-                  }
-                }}
-                className="bg-gradient-primary hover:opacity-90"
-              >
-                Continue Learning
-              </Button>
+                    // If all lessons completed, go to first lesson
+                    if (course.chapters[0]?.lessons[0]) {
+                      navigate(`/lesson/${course.chapters[0].lessons[0].id}`);
+                    }
+                  }}
+                  className="bg-gradient-primary hover:opacity-90"
+                >
+                  Continue Learning
+                </Button>
+              ) : (
+                <Button
+                  size="lg"
+                  onClick={() => navigate(`/course/${course.slug}/quiz`)}
+                  className="bg-gradient-primary hover:opacity-90 shadow-glow"
+                >
+                  Take Quiz
+                </Button>
+              )}
               <Badge className="bg-success/20 text-success flex items-center gap-2 px-4 py-2">
                 <CheckCircle2 className="h-4 w-4" />
-                Enrolled
+                {progressPercent}% Complete
               </Badge>
             </div>
           )}
