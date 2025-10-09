@@ -58,12 +58,13 @@ const CourseQuiz = () => {
           .from("quizzes")
           .select("id, lesson_id")
           .in("lesson_id", allLessonIds)
-          .limit(1)
-          .maybeSingle();
+          .limit(1);
 
-        if (quizData) {
+        const firstQuiz = quizData && quizData.length > 0 ? quizData[0] : null;
+
+        if (firstQuiz) {
           setHasQuiz(true);
-          setQuizLessonId(quizData.lesson_id);
+          setQuizLessonId(firstQuiz.lesson_id);
         }
       }
 
