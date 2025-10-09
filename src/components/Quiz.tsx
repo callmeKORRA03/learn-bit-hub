@@ -63,10 +63,15 @@ const Quiz = ({ lessonId, userId, onComplete }: QuizProps) => {
       .from("quizzes")
       .select("*")
       .eq("lesson_id", lessonId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error("Error fetching quiz:", error);
+      toast({
+        title: "Error loading quiz",
+        description: "Unable to load quiz data. Please try again.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -76,6 +81,9 @@ const Quiz = ({ lessonId, userId, onComplete }: QuizProps) => {
         quiz_json: data.quiz_json as unknown as { questions: Question[] }
       });
       setTimeLeft(data.timer_minutes * 60);
+    } else {
+      // No quiz found for this lesson
+      setQuiz(null);
     }
   };
 
