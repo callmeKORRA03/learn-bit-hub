@@ -63,7 +63,8 @@ const Quiz = ({ lessonId, userId, onComplete }: QuizProps) => {
       .from("quizzes")
       .select("*")
       .eq("lesson_id", lessonId)
-      .maybeSingle();
+      .order("created_at", { ascending: false })
+      .limit(1);
 
     if (error) {
       console.error("Error fetching quiz:", error);
@@ -75,14 +76,21 @@ const Quiz = ({ lessonId, userId, onComplete }: QuizProps) => {
       return;
     }
 
-    if (data && data.quiz_json) {
+    const quizData = data && data.length > 0 ? data[0] : null;
+
+    if (quizData && quizData.quiz_json) {
       setQuiz({
-        ...data,
-        quiz_json: data.quiz_json as unknown as { questions: Question[] }
+        ...quizData,
+        quiz_json: quizData.quiz_json as unknown as { questions: Question[] }
       });
-      setTimeLeft(data.timer_minutes * 60);
+      setTimeLeft(quizData.timer_minutes * 60);
     } else {
       // No quiz found for this lesson
+      toast({
+        title: "No quiz available",
+        description: "This lesson doesn't have a quiz yet.",
+        variant: "destructive",
+      });
       setQuiz(null);
     }
   };

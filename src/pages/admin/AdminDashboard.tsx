@@ -170,17 +170,21 @@ const AdminDashboard = () => {
             </Card>
           </Link>
 
-          <Card className="bg-gradient-card border-primary/20 shadow-card opacity-60">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3">
-                <BookOpen className="h-6 w-6 text-accent" />
-                Manage Courses
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Coming soon: Create and edit courses</p>
-            </CardContent>
-          </Card>
+          <Link to="/admin/courses">
+            <Card className="bg-gradient-card border-primary/20 shadow-card hover:shadow-glow transition-all hover:scale-105 cursor-pointer">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3">
+                  <BookOpen className="h-6 w-6 text-accent" />
+                  Manage Courses
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Create and edit courses, chapters, lessons, and quizzes
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
 
           <Card className="bg-gradient-card border-primary/20 shadow-card opacity-60">
             <CardHeader>
