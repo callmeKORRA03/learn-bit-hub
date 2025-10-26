@@ -1,7 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,7 +26,7 @@ const Auth = () => {
   const handleEmailAuth = async (type: "login" | "signup") => {
     try {
       setLoading(true);
-      
+
       if (type === "signup") {
         const { error } = await supabase.auth.signUp({
           email,
@@ -83,7 +89,9 @@ const Auth = () => {
               BitEdu
             </span>
           </div>
-          <p className="text-muted-foreground">Start your blockchain learning journey</p>
+          <p className="text-muted-foreground">
+            Start your blockchain learning journey
+          </p>
         </div>
 
         <Card className="bg-gradient-card border-primary/20 shadow-glow">
@@ -186,12 +194,6 @@ const Auth = () => {
                 <Wallet className="mr-2 h-4 w-4" />
                 Continue as Guest
               </Button>
-
-              <p className="text-center text-xs text-muted-foreground mt-4">
-                <strong>Admin access:</strong> Use email{" "}
-                <span className="font-mono bg-muted px-2 py-1 rounded">admin@bitedu.dev</span>
-                {" "}with any password
-              </p>
             </div>
           </CardContent>
         </Card>

@@ -1,12 +1,24 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, CheckCircle2, XCircle, Trophy, AlertCircle } from "lucide-react";
+import {
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Trophy,
+  AlertCircle,
+} from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Question {
@@ -42,11 +54,14 @@ const Quiz = ({ lessonId, userId, onComplete }: QuizProps) => {
   const [attempts, setAttempts] = useState<any[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [score, setScore] = useState(0);
-  const [feedback, setFeedback] = useState<Array<{ question: number; correct: boolean; tip?: string }>>([]);
+  const [feedback, setFeedback] = useState<
+    Array<{ question: number; correct: boolean; tip?: string }>
+  >([]);
 
   useEffect(() => {
     fetchQuiz();
-    fetchAttempts();
+    // fetchAttempts will be called after quiz is fetched (see fetchQuiz)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lessonId]);
 
   useEffect(() => {
@@ -56,6 +71,7 @@ const Quiz = ({ lessonId, userId, onComplete }: QuizProps) => {
     } else if (timeLeft === 0 && quiz && !showResults && currentQuestion >= 0) {
       handleSubmit();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, showResults]);
 
   const fetchQuiz = async () => {
@@ -79,11 +95,48 @@ const Quiz = ({ lessonId, userId, onComplete }: QuizProps) => {
     const quizData = data && data.length > 0 ? data[0] : null;
 
     if (quizData && quizData.quiz_json) {
-      setQuiz({
-        ...quizData,
-        quiz_json: quizData.quiz_json as unknown as { questions: Question[] }
+      // Normalize questions: accept either 'correct' or legacy 'correctAnswer'
+      const rawQuestions = (quizData.quiz_json.questions || []) as any[];
+
+      const normalizedQuestions: Question[] = rawQuestions.map((q, idx) => {
+        // Defensive extraction
+        const options = Array.isArray(q.options)
+          ? q.options
+          : q.answers && Array.isArray(q.answers)
+          ? q.answers
+          : [];
+        const correctFromCorrect =
+          typeof q.correct === "number" ? q.correct : undefined;
+        const correctFromCorrectAnswer =
+          typeof q.correctAnswer === "number" ? q.correctAnswer : undefined;
+        const correct =
+          correctFromCorrect !== undefined
+            ? correctFromCorrect
+            : correctFromCorrectAnswer !== undefined
+            ? correctFromCorrectAnswer
+            : 0; // default to 0 if missing (safer than undefined)
+        const tip = q.tip || q.hint || "";
+
+        return {
+          question: q.question || `Question ${idx + 1}`,
+          options,
+          correct,
+          tip,
+        };
       });
-      setTimeLeft(quizData.timer_minutes * 60);
+
+      const normalizedQuiz: QuizData = {
+        ...quizData,
+        quiz_json: { questions: normalizedQuestions },
+        passing_threshold: Number(quizData.passing_threshold || 80),
+        timer_minutes: Number(quizData.timer_minutes || 5),
+      };
+
+      setQuiz(normalizedQuiz);
+      setTimeLeft(normalizedQuiz.timer_minutes * 60);
+
+      // After quiz is set, fetch attempts for this quiz id
+      fetchAttempts(normalizedQuiz.id);
     } else {
       // No quiz found for this lesson
       toast({
@@ -95,13 +148,13 @@ const Quiz = ({ lessonId, userId, onComplete }: QuizProps) => {
     }
   };
 
-  const fetchAttempts = async () => {
-    if (!quiz) return;
-    
+  const fetchAttempts = async (quizId?: string) => {
+    if (!quizId && !quiz) return;
+    const id = quizId || (quiz as QuizData).id;
     const { data } = await supabase
       .from("quiz_attempts")
       .select("*")
-      .eq("quiz_id", quiz.id)
+      .eq("quiz_id", id)
       .eq("user_id", userId)
       .order("attempt_at", { ascending: false });
 
@@ -116,9 +169,14 @@ const Quiz = ({ lessonId, userId, onComplete }: QuizProps) => {
 
     const questions = quiz.quiz_json.questions;
     let correctCount = 0;
-    const feedbackData: Array<{ question: number; correct: boolean; tip?: string }> = [];
+    const feedbackData: Array<{
+      question: number;
+      correct: boolean;
+      tip?: string;
+    }> = [];
 
     questions.forEach((q, idx) => {
+      // answers[idx] is a number; q.correct is normalized to number
       const isCorrect = answers[idx] === q.correct;
       if (isCorrect) correctCount++;
       feedbackData.push({
@@ -136,13 +194,15 @@ const Quiz = ({ lessonId, userId, onComplete }: QuizProps) => {
     setShowResults(true);
 
     // Save attempt
-    const { error: attemptError } = await supabase.from("quiz_attempts").insert({
-      quiz_id: quiz.id,
-      user_id: userId,
-      score: finalScore,
-      passed,
-      feedback: feedbackData,
-    });
+    const { error: attemptError } = await supabase
+      .from("quiz_attempts")
+      .insert({
+        quiz_id: quiz.id,
+        user_id: userId,
+        score: finalScore,
+        passed,
+        feedback: feedbackData,
+      });
 
     if (attemptError) {
       console.error("Error saving attempt:", attemptError);
@@ -255,11 +315,18 @@ const Quiz = ({ lessonId, userId, onComplete }: QuizProps) => {
           )}
           <div className="flex gap-4">
             {!passed && (
-              <Button onClick={handleRetake} variant="outline" className="flex-1">
+              <Button
+                onClick={handleRetake}
+                variant="outline"
+                className="flex-1"
+              >
                 Retake Quiz (2 BitCred)
               </Button>
             )}
-            <Button onClick={() => onComplete(passed)} className="flex-1 bg-gradient-primary">
+            <Button
+              onClick={() => onComplete(passed)}
+              className="flex-1 bg-gradient-primary"
+            >
               {passed ? "Continue" : "Review Lesson"}
             </Button>
           </div>
@@ -279,7 +346,8 @@ const Quiz = ({ lessonId, userId, onComplete }: QuizProps) => {
           <div className="flex items-center gap-2">
             <Clock className="h-5 w-5 text-primary" />
             <span className="text-lg font-semibold">
-              {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, "0")}
+              {Math.floor(timeLeft / 60)}:
+              {(timeLeft % 60).toString().padStart(2, "0")}
             </span>
           </div>
           <span className="text-sm text-muted-foreground">
@@ -303,7 +371,10 @@ const Quiz = ({ lessonId, userId, onComplete }: QuizProps) => {
                 className="flex items-center space-x-3 p-4 rounded-lg border border-border/40 hover:bg-primary/5 transition-colors"
               >
                 <RadioGroupItem value={idx.toString()} id={`option-${idx}`} />
-                <Label htmlFor={`option-${idx}`} className="flex-1 cursor-pointer">
+                <Label
+                  htmlFor={`option-${idx}`}
+                  className="flex-1 cursor-pointer"
+                >
                   {option}
                 </Label>
               </div>
