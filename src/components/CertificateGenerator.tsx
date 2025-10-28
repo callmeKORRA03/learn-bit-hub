@@ -1,4 +1,3 @@
-// CertificateGenerator.tsx
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,7 +14,7 @@ import jsPDF from "jspdf";
 interface CertificateGeneratorProps {
   courseTitle: string;
   userName: string;
-  userId: string; // keep prop for display, but we will verify/override with session user id
+  userId: string;
   courseId: string;
   onRequestSubmitted?: () => void;
 }
@@ -106,50 +105,33 @@ const CertificateGenerator = ({
     return pdf;
   };
 
-  // REQUEST CERTIFICATE: use the current session user id to satisfy RLS policies
   const handleRequestCertificate = async () => {
     try {
-      // get current logged-in user from session
+      // Get current session to ensure we're authenticated
       const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      if (userError) {
-        throw userError;
-      }
-
-      if (!user) {
+      if (!session) {
         toast({
-          title: "Not signed in",
-          description: "Please sign in to request a certificate.",
+          title: "Not authenticated",
+          description: "Please sign in to request a certificate",
           variant: "destructive",
         });
         return;
       }
 
-      // ensure we use the session user id (avoid mismatches)
-      const sessionUserId = user.id;
-
-      // Optional: if prop userId exists but differs, warn (but still use session id)
-      if (userId && userId !== sessionUserId) {
-        console.warn(
-          `prop userId (${userId}) does not match session user id (${sessionUserId}). Overriding to session user id.`
-        );
-      }
-
-      // Check if already requested (use session user id)
-      const { data: existing, error: existsErr } = await supabase
+      // Check if already requested
+      const { data: existing, error: checkError } = await supabase
         .from("certificates")
         .select("*")
-        .eq("user_id", sessionUserId)
+        .eq("user_id", session.user.id)
         .eq("course_id", courseId)
         .maybeSingle();
 
-      if (existsErr) {
-        console.error("Error checking existing certificate:", existsErr);
-        // If the error is RLS related, it will be thrown here — report to user
-        throw existsErr;
+      if (checkError) {
+        console.error("Error checking existing certificate:", checkError);
+        throw checkError;
       }
 
       if (existing) {
@@ -160,16 +142,16 @@ const CertificateGenerator = ({
         return;
       }
 
-      // Insert certificate request with session user id and timestamp
+      // Insert certificate request - this should now work with the fixed RLS policies
       const { error } = await supabase.from("certificates").insert({
-        user_id: sessionUserId,
+        user_id: session.user.id,
         course_id: courseId,
         status: "pending",
         requested_at: new Date().toISOString(),
       });
 
       if (error) {
-        // This is likely where you'd see RLS violations if policy disallows
+        console.error("Certificate insert error:", error);
         throw error;
       }
 
@@ -179,47 +161,35 @@ const CertificateGenerator = ({
       });
 
       onRequestSubmitted?.();
-    } catch (err: any) {
-      console.error("Error requesting certificate:", err);
-      const message =
-        err?.message ||
-        (err?.error &&
-        err?.error ===
-          'new row violates row-level security policy for table "certificates"'
-          ? "Row-level security policy prevents this action (check table policies)"
-          : "Failed to request certificate");
+    } catch (error: any) {
+      console.error("Error requesting certificate:", error);
       toast({
         title: "Error",
-        description: message,
+        description: error.message || "Failed to request certificate",
         variant: "destructive",
       });
     }
   };
 
-  // DOWNLOAD: also verify session user id before selecting
   const handleDownloadCertificate = async () => {
     try {
       const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      if (userError) throw userError;
-      if (!user) {
+      if (!session) {
         toast({
-          title: "Not signed in",
-          description: "Please sign in to download your certificate.",
+          title: "Not authenticated",
+          description: "Please sign in to download your certificate",
           variant: "destructive",
         });
         return;
       }
 
-      const sessionUserId = user.id;
-
       const { data: cert, error } = await supabase
         .from("certificates")
         .select("status")
-        .eq("user_id", sessionUserId)
+        .eq("user_id", session.user.id)
         .eq("course_id", courseId)
         .single();
 
